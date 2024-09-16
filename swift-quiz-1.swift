@@ -5,19 +5,19 @@ protocol ReaderDelegate: class { //: AnyObject чтобы могли испол�
 }
 
 class Reader { //можно указать final class если не будет наследовавния от него
-    var file: String! //String? используем опционал чтобы избежать крашей
+    var fileURL: URL! //String? используем опционал чтобы избежать крашей, можно сразу указать тип данных URL
     var output: ReaderDelegate? //weak var чтобы избежать retain cycle
     var readCompleteBlock: (() -> Void)?
     
     func read() {
-//        guard let file = file else {
-//            return
-//        } распаковываем file
-        let fileUrl = URL(fileURLWithPath: file)
-        if let data = try? Data(contentsOf: fileUrl) {
+        //        guard let file = file else {
+        //            return
+        //        } распаковываем file
+        DispatchQueue.global(qos: .background).async {
+            let data = try Data(contentsOf: fileUrl)
             self.output?.didReadData(data: data)
-            self.readCompleteBlock?();
-        } //if let чтобы не использрвать принудительную распаковку, можно написать print() для отслеживания ошибок
+            self.readCompleteBlock?()
+        }  //if let чтобы не использрвать принудительную распаковку, можно написать print() для отслеживания ошибок, запрос на чтение файла можно выполнять не в главном потоку, приоритет потока qos выбрать в зависимости от нужд. Еще можно добавить проверку ошибок через do {} catch {} и проверку на существование файла
     }
 }
 
@@ -27,7 +27,7 @@ class orderReader: ReaderDelegate { //OrderReader тк классы всегда
         self.reader = Reader()
         self.reader.file = file.absoluteString.replacingOccurrences(of: "file://", with: "") //self.reader.file = file.path можно использовать обращение к адресу напрямую
         self.reader.output = self
-        self.reader.readCompleteBlock = {
+        self.reader.readCompleteBlock = { //[weak self] чтобы избежать захвата сильный сслыки в замыкании
             self.didComplete()
         }
     }
@@ -38,10 +38,17 @@ class orderReader: ReaderDelegate { //OrderReader тк классы всегда
     
     func didComplete() {
         print("end of file")
+        //можно преобразовать данные в стоку if let content = String(data: data, encoding: .utf8)
+        //{
+        //        print(content)
+        //    } else {
+        //        print("Unable to convert data to string")
+        //    }
     }
     
     func didReadData(data: Data) {
         print("\(data)")
+        // и тут тоже
     }
 }
 
@@ -52,3 +59,5 @@ orderReader.Read()
 //    let orderReader = OrderReader(URL(fileURLWithPath: filePath))
 //    orderReader.Read()
 //} проверяем адрес перед вызовом
+
+
